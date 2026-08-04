@@ -4,6 +4,8 @@ import { scanDocker } from './scanner/docker.js';
 import { scanCaches } from './scanner/caches.js';
 import { scanBuilds } from './scanner/builds.js';
 import { scanProcess } from './scanner/process.js';
+import { scanNodeModules } from './scanner/nodemodules.js';
+import { scanMemory } from './scanner/memory.js';
 import { buildPlan, computeScores } from './planner.js';
 import { executeTask } from './generator.js';
 
@@ -14,11 +16,13 @@ const MAX_REPLAN_CYCLES = 2;
 
 async function rescanCategory(category: Category): Promise<CategoryScan> {
   switch (category) {
-    case 'disk':    return scanDisk();
-    case 'docker':  return scanDocker();
-    case 'caches':  return scanCaches();
-    case 'builds':  return scanBuilds();
-    case 'process': return scanProcess();
+    case 'disk':        return scanDisk();
+    case 'docker':      return scanDocker();
+    case 'caches':      return scanCaches();
+    case 'builds':      return scanBuilds();
+    case 'process':     return scanProcess();
+    case 'nodemodules': return scanNodeModules();
+    case 'memory':      return scanMemory();
   }
 }
 

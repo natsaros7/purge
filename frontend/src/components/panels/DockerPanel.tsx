@@ -24,7 +24,7 @@ export function DockerPanel({ scan, loading, aiCount, onRefetch, onLog }: Props)
   }
 
   return (
-    <PanelShell title="Docker" icon={Cube} score={scan.score} loading={loading} aiCount={aiCount} span={hasActions ? { row: 2 } : undefined}>
+    <PanelShell title="Docker" icon={Cube} score={scan.score} loading={loading} aiCount={aiCount} onRefetch={onRefetch} span={hasActions ? { row: 2 } : undefined}>
       {hasActions
         ? <BigValue value={reclaimGB.toFixed(2)} unit="GB" sub="reclaimable" score={scan.score} />
         : <BigValue value={scan.score} sub="no waste" score={scan.score} />}

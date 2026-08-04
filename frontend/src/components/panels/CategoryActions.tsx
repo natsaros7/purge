@@ -13,7 +13,7 @@ interface Props {
 }
 
 const CAT_LABEL: Record<Category, string> = {
-  disk: 'Disk', docker: 'Docker', caches: 'Caches', builds: 'Builds', process: 'Process',
+  disk: 'Disk', docker: 'Docker', caches: 'Caches', builds: 'Builds', process: 'Process', nodemodules: 'node_modules', memory: 'Memory',
 };
 
 /** Per-category action zone: a "Fix all" button plus individual actions. */

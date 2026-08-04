@@ -4,6 +4,7 @@ import { exec, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { homedir } from 'node:os';
 import path from 'node:path';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { scanRouter } from './routes/scan.js';
 import { runRouter } from './routes/run.js';
 import { eventsRouter } from './routes/events.js';
@@ -138,6 +139,37 @@ app.post('/api/git-clean', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
+});
+
+// ─── Score history ────────────────────────────────────────────────────────────
+
+const HISTORY_FILE = path.join(HOME, '.config', 'purge', 'history.json');
+const HISTORY_MAX  = 30;
+
+interface HistoryEntry { ts: number; score: number; }
+
+async function readHistory(): Promise<HistoryEntry[]> {
+  try { return JSON.parse(await readFile(HISTORY_FILE, 'utf-8')) as HistoryEntry[]; }
+  catch { return []; }
+}
+
+async function appendHistory(score: number): Promise<void> {
+  const entries = await readHistory();
+  entries.push({ ts: Date.now(), score: Math.round(score) });
+  const trimmed = entries.slice(-HISTORY_MAX);
+  await mkdir(path.dirname(HISTORY_FILE), { recursive: true });
+  await writeFile(HISTORY_FILE, JSON.stringify(trimmed));
+}
+
+app.get('/api/history', async (_req, res) => {
+  res.json(await readHistory());
+});
+
+app.post('/api/history', async (req, res) => {
+  const { score } = req.body as { score?: number };
+  if (typeof score !== 'number') { res.status(400).json({ error: 'score required' }); return; }
+  await appendHistory(score).catch(() => {});
+  res.json({ ok: true });
 });
 
 const PORT = 3001;

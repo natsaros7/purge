@@ -76,4 +76,19 @@ export async function runSuggestion(id: string): Promise<{ ok: boolean; reclaime
   return res.json();
 }
 
+export async function fetchHistory(): Promise<{ ts: number; score: number }[]> {
+  try {
+    const res = await fetch(`${API}/api/history`);
+    return res.ok ? res.json() : [];
+  } catch { return []; }
+}
+
+export async function recordHistory(score: number): Promise<void> {
+  await fetch(`${API}/api/history`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ score }),
+  }).catch(() => {});
+}
+
 export const SSE_URL = `${API}/api/events`;

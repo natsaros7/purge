@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { Icon, Sparkle } from '@phosphor-icons/react';
+import { Icon, Sparkle, ArrowsClockwise } from '@phosphor-icons/react';
 import { COLORS, scoreColor } from '../../theme';
 
 const AI = '#A78BFA';
@@ -17,6 +17,8 @@ interface Props {
   aiCount?: number;
   /** grid-column / grid-row span for the bento layout */
   span?: { col?: number; row?: number };
+  /** if provided, shows a rescan icon button in the header */
+  onRefetch?: () => void;
 }
 
 // Flat status-tinted tile backgrounds (bento style).
@@ -27,7 +29,7 @@ function tileBg(score: number | undefined, loading: boolean): string {
   return '#241018';
 }
 
-export function PanelShell({ title, icon: IconCmp, children, error, score, loading, headerRight, aiCount, span }: Props) {
+export function PanelShell({ title, icon: IconCmp, children, error, score, loading, headerRight, aiCount, span, onRefetch }: Props) {
   const accent = score !== undefined ? scoreColor(score) : COLORS.primary;
 
   return (
@@ -55,7 +57,24 @@ export function PanelShell({ title, icon: IconCmp, children, error, score, loadi
             </span>
           ) : null}
         </div>
-        {!loading && headerRight}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {!loading && headerRight}
+          {onRefetch && (
+            <button
+              onClick={onRefetch} disabled={loading}
+              title="Rescan"
+              style={{
+                background: 'transparent', border: 'none', cursor: loading ? 'default' : 'pointer',
+                padding: 4, borderRadius: 6, color: COLORS.textMute, opacity: loading ? 0.3 : 1,
+                display: 'flex', alignItems: 'center', transition: 'color 0.15s',
+              }}
+              onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.color = COLORS.textDim; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = COLORS.textMute; }}
+            >
+              <ArrowsClockwise size={14} className={loading ? 'spin' : ''} />
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (

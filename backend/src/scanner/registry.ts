@@ -1,9 +1,11 @@
-import { scanDisk }    from './disk.js';
-import { scanDocker }  from './docker.js';
-import { scanCaches }  from './caches.js';
-import { scanBuilds }  from './builds.js';
-import { scanProcess } from './process.js';
-import { scanGit }     from './git.js';
+import { scanDisk }         from './disk.js';
+import { scanDocker }       from './docker.js';
+import { scanCaches }       from './caches.js';
+import { scanBuilds }       from './builds.js';
+import { scanProcess }      from './process.js';
+import { scanNodeModules }  from './nodemodules.js';
+import { scanMemory }       from './memory.js';
+import { scanGit }          from './git.js';
 import type { CategoryScan, GitScan, Category } from '../types.js';
 
 // ─── Scanners ────────────────────────────────────────────────────────────────
@@ -11,14 +13,16 @@ import type { CategoryScan, GitScan, Category } from '../types.js';
 type Scanner = () => Promise<CategoryScan>;
 
 const SCANNERS: Record<Category, Scanner> = {
-  disk:    scanDisk,
-  docker:  scanDocker,
-  caches:  scanCaches,
-  builds:  scanBuilds,
-  process: scanProcess,
+  disk:        scanDisk,
+  docker:      scanDocker,
+  caches:      scanCaches,
+  builds:      scanBuilds,
+  process:     scanProcess,
+  nodemodules: scanNodeModules,
+  memory:      scanMemory,
 };
 
-export const CATEGORIES: Category[] = ['disk', 'docker', 'caches', 'builds', 'process'];
+export const CATEGORIES: Category[] = ['disk', 'docker', 'caches', 'builds', 'process', 'nodemodules', 'memory'];
 
 // ─── Cache + in-flight dedup ─────────────────────────────────────────────────
 

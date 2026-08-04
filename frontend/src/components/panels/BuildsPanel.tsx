@@ -12,7 +12,7 @@ export function BuildsPanel({ scan, loading, aiCount, onRefetch, onLog }: Props)
   const dirCount = scan.metrics['dirCount'] as number ?? 0;
 
   return (
-    <PanelShell title="Builds" icon={Hammer} score={scan.score} loading={loading} aiCount={aiCount} span={hasActions ? { row: 2 } : undefined}>
+    <PanelShell title="Builds" icon={Hammer} score={scan.score} loading={loading} aiCount={aiCount} onRefetch={onRefetch} span={hasActions ? { row: 2 } : undefined}>
       {hasActions
         ? <BigValue value={totalGB.toFixed(2)} unit="GB" sub={`across ${dirCount} build dir${dirCount !== 1 ? 's' : ''}`} score={scan.score} />
         : <BigValue value={scan.score} sub="no stale output" score={scan.score} />}

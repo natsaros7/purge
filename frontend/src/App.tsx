@@ -1,11 +1,12 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowsClockwise, Lightning, Info, Sparkle } from '@phosphor-icons/react';
+import { ArrowsClockwise, Lightning, Info, Sparkle, Sparkle as SparkleIcon } from '@phosphor-icons/react';
 import { PurgeEvent, Category, AISuggestion } from './types';
 import { useCategoryScans, CATEGORIES } from './hooks/useCategoryScans';
 import { useGitScan } from './hooks/useGitScan';
 import { useSSE } from './hooks/useSSE';
 import { triggerRun, runDiagnose } from './lib/api';
+import { useScoreHistory } from './hooks/useScoreHistory';
 import { COLORS, scoreColor } from './theme';
 import { AlertBanner } from './components/hud/AlertBanner';
 import { AboutOverlay } from './components/hud/AboutOverlay';
@@ -16,13 +17,14 @@ import { DockerPanel } from './components/panels/DockerPanel';
 import { CachePanel } from './components/panels/CachePanel';
 import { BuildsPanel } from './components/panels/BuildsPanel';
 import { ProcessPanel } from './components/panels/ProcessPanel';
+import { NodeModulesPanel } from './components/panels/NodeModulesPanel';
+import { MemoryPanel } from './components/panels/MemoryPanel';
 import { GitPanel } from './components/panels/GitPanel';
 import { AITile } from './components/panels/AITile';
-import { Sparkle as SparkleIcon } from '@phosphor-icons/react';
 
 type Phase = 'IDLE' | 'PLANNING' | 'EXECUTING' | 'EVALUATING' | 'REPLANNING' | 'COMPLETE' | 'FAILED';
 
-const CAT_LABELS: Record<Category, string> = { disk: 'Disk', docker: 'Docker', caches: 'Caches', builds: 'Builds', process: 'Process' };
+const CAT_LABELS: Record<Category, string> = { disk: 'Disk', docker: 'Docker', caches: 'Caches', builds: 'Builds', process: 'Process', nodemodules: 'node_modules', memory: 'Memory' };
 const EMPTY = (cat: Category) => ({ category: cat, score: 0, metrics: {}, actions: [] });
 
 function categoryToLabel(c: string): string {
@@ -31,6 +33,7 @@ function categoryToLabel(c: string): string {
 
 export default function App() {
   const { scans, loading, overall, refetchAll, refetchOne } = useCategoryScans();
+  const allLoaded = CATEGORIES.every(c => !loading.has(c)) && overall > 0;
   const { git, loading: gitLoading, refetch: refetchGit } = useGitScan();
   const [phase, setPhase] = useState<Phase>('IDLE');
   const [log, setLog] = useState<LogEntry[]>([]);
@@ -39,6 +42,7 @@ export default function App() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | undefined>();
   const [aiRan, setAiRan] = useState(false);
+  const scoreHistory = useScoreHistory(overall, allLoaded);
 
   const addLog = useCallback((text: string, type: LogEntry['type']) => {
     setLog(prev => [...prev.slice(-99), { id: `${Date.now()}-${Math.random()}`, text, type, timestamp: Date.now() }]);
@@ -175,13 +179,15 @@ export default function App() {
           maxWidth: 1500,
           margin: '0 auto',
         }}>
-          <HeroTile score={overall} loading={anyLoading} reclaimableGB={reclaimableGB} gitFindings={gitFindings} />
+          <HeroTile score={overall} loading={anyLoading} reclaimableGB={reclaimableGB} gitFindings={gitFindings} history={scoreHistory} />
 
-          <DiskPanel    scan={getScan('disk')}    loading={isLoading('disk')}    aiCount={aiCountByCat['disk']} />
+          <DiskPanel    scan={getScan('disk')}    loading={isLoading('disk')}    aiCount={aiCountByCat['disk']}    onRefetch={() => refetchOne('disk')} />
           <DockerPanel  scan={getScan('docker')}  loading={isLoading('docker')}  aiCount={aiCountByCat['docker']}  onRefetch={() => refetchOne('docker')}  onLog={t => addLog(t, 'info')} />
           <CachePanel   scan={getScan('caches')}  loading={isLoading('caches')}  aiCount={aiCountByCat['caches']}  onRefetch={() => refetchOne('caches')}  onLog={t => addLog(t, 'info')} />
-          <BuildsPanel  scan={getScan('builds')}  loading={isLoading('builds')}  aiCount={aiCountByCat['builds']}  onRefetch={() => refetchOne('builds')}  onLog={t => addLog(t, 'info')} />
-          <ProcessPanel scan={getScan('process')} loading={isLoading('process')} aiCount={aiCountByCat['process']} />
+          <BuildsPanel      scan={getScan('builds')}      loading={isLoading('builds')}      aiCount={aiCountByCat['builds']}      onRefetch={() => refetchOne('builds')}      onLog={t => addLog(t, 'info')} />
+          <ProcessPanel     scan={getScan('process')}     loading={isLoading('process')}     aiCount={aiCountByCat['process']}     onRefetch={() => refetchOne('process')} />
+          <NodeModulesPanel scan={getScan('nodemodules')} loading={isLoading('nodemodules')} aiCount={aiCountByCat['nodemodules']} onRefetch={() => refetchOne('nodemodules')} onLog={t => addLog(t, 'info')} />
+          <MemoryPanel      scan={getScan('memory')}      loading={isLoading('memory')}      aiCount={aiCountByCat['memory']} />
 
           {/* AI Insights — a header strip plus a spawned tile per suggestion */}
           {(aiRan || aiLoading) && (
@@ -205,7 +211,14 @@ export default function App() {
                 />
               ))
               : aiSuggestions.map((s, i) => (
-                <AITile key={s.id} index={i} suggestion={s} onLog={t => addLog(t, 'info')} onDone={() => { refetchAll(true); refetchGit(true); }} />
+                <AITile
+                  key={s.id} index={i} suggestion={s}
+                  onLog={t => addLog(t, 'info')}
+                  onDone={id => {
+                    setAiSuggestions(prev => prev.filter(x => x.id !== id));
+                    refetchAll(true); refetchGit(true);
+                  }}
+                />
               ))
             }
           </AnimatePresence>

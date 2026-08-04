@@ -3,25 +3,27 @@ import { buildPlan, computeScores } from '../../planner.js';
 import type { CategoryScan } from '../../types.js';
 
 const mockScans: CategoryScan[] = [
-  { category: 'disk', score: 80, metrics: {}, actions: [] },
-  { category: 'docker', score: 40, metrics: {}, actions: [
+  { category: 'disk',        score: 80, metrics: {}, actions: [] },
+  { category: 'docker',      score: 40, metrics: {}, actions: [
     { id: 'docker-builder-prune', label: 'Prune build cache', command: 'docker builder prune -af', estimatedReclaimBytes: 9 * 1024**3, category: 'docker' },
     { id: 'docker-image-prune', label: 'Prune images', command: 'docker image prune -f', estimatedReclaimBytes: 1 * 1024**3, category: 'docker' },
   ]},
-  { category: 'caches', score: 60, metrics: {}, actions: [
+  { category: 'caches',      score: 60, metrics: {}, actions: [
     { id: 'jetbrains', label: 'JetBrains', command: 'rm -rf ~/Library/Caches/JetBrains/*', estimatedReclaimBytes: 7 * 1024**3, category: 'caches' },
   ]},
-  { category: 'builds', score: 90, metrics: {}, actions: [] },
-  { category: 'process', score: 70, metrics: {}, actions: [] },
+  { category: 'builds',      score: 90, metrics: {}, actions: [] },
+  { category: 'process',     score: 70, metrics: {}, actions: [] },
+  { category: 'nodemodules', score: 50, metrics: {}, actions: [] },
+  { category: 'memory',      score: 75, metrics: {}, actions: [] },
 ];
 
 describe('computeScores', () => {
   it('weights scores correctly', () => {
     const scores = computeScores(mockScans);
-    // disk*0.15 + docker*0.30 + caches*0.25 + builds*0.20 + process*0.10
-    // 80*0.15 + 40*0.30 + 60*0.25 + 90*0.20 + 70*0.10
-    // 12 + 12 + 15 + 18 + 7 = 64
-    expect(scores.overall).toBe(64);
+    // Weights: disk=0.10, docker=0.30, caches=0.25, builds=0.10, process=0.05, nodemodules=0.20, memory=0.10; total=1.10
+    // 80*0.10 + 40*0.30 + 60*0.25 + 90*0.10 + 70*0.05 + 50*0.20 + 75*0.10 = 8+12+15+9+3.5+10+7.5 = 65
+    // 65 / 1.10 ≈ 59.09 → rounds to 59
+    expect(scores.overall).toBe(59);
     expect(scores.disk).toBe(80);
   });
 });

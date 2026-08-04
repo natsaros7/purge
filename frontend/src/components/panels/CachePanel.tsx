@@ -11,7 +11,7 @@ export function CachePanel({ scan, loading, aiCount, onRefetch, onLog }: Props) 
   const reclaimGB = scan.actions.reduce((s, a) => s + a.estimatedReclaimBytes, 0) / 1024 ** 3;
 
   return (
-    <PanelShell title="Caches" icon={Package} score={scan.score} loading={loading} aiCount={aiCount} span={hasActions ? { row: 2 } : undefined}>
+    <PanelShell title="Caches" icon={Package} score={scan.score} loading={loading} aiCount={aiCount} onRefetch={onRefetch} span={hasActions ? { row: 2 } : undefined}>
       {hasActions
         ? <BigValue value={reclaimGB.toFixed(2)} unit="GB" sub="reclaimable" score={scan.score} />
         : <BigValue value={scan.score} sub="caches clear" score={scan.score} />}

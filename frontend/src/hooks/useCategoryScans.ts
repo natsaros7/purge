@@ -4,10 +4,10 @@ import { fetchCategoryScan } from '../lib/api';
 
 export type ScanMap = Partial<Record<Category, CategoryScan>>;
 
-export const CATEGORIES: Category[] = ['disk', 'docker', 'caches', 'builds', 'process'];
+export const CATEGORIES: Category[] = ['disk', 'docker', 'caches', 'builds', 'process', 'nodemodules', 'memory'];
 
 const WEIGHTS: Record<Category, number> = {
-  disk: 0.15, docker: 0.30, caches: 0.25, builds: 0.20, process: 0.10,
+  disk: 0.10, docker: 0.30, caches: 0.25, builds: 0.10, process: 0.05, nodemodules: 0.20, memory: 0.10,
 };
 
 /** Compute overall score from whatever categories have arrived, re-normalizing weights. */

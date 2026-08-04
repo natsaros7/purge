@@ -1,4 +1,4 @@
-export type Category = 'disk' | 'docker' | 'caches' | 'builds' | 'process';
+export type Category = 'disk' | 'docker' | 'caches' | 'builds' | 'process' | 'nodemodules' | 'memory';
 
 export interface RemediationAction {
   id: string;
@@ -52,6 +52,8 @@ export interface CategoryScores {
   caches: number;
   builds: number;
   process: number;
+  nodemodules: number;
+  memory: number;
   overall: number;
 }
 

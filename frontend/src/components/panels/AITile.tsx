@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkle, Copy, Check } from '@phosphor-icons/react';
+import { Sparkle, Copy, Check, Warning } from '@phosphor-icons/react';
 import { AISuggestion } from '../../types';
 import { COLORS } from '../../theme';
 import { runSuggestion } from '../../lib/api';
@@ -9,7 +9,7 @@ interface Props {
   suggestion: AISuggestion;
   index: number;
   onLog?: (text: string) => void;
-  onDone?: () => void;
+  onDone?: (id: string) => void;
 }
 
 const AI = '#A78BFA';
@@ -23,6 +23,7 @@ const RISK: Record<AISuggestion['risk'], { fg: string; bg: string }> = {
 export function AITile({ suggestion: s, index, onLog, onDone }: Props) {
   const [state, setState] = useState<'idle' | 'confirm' | 'running' | 'done'>('idle');
   const [copied, setCopied] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | undefined>();
   const risk = RISK[s.risk];
 
   const handleRun = async () => {
@@ -30,15 +31,22 @@ export function AITile({ suggestion: s, index, onLog, onDone }: Props) {
     if (state === 'confirm') {
       const ts = Date.now();
       setState('running');
+      setErrorMsg(undefined);
       onLog?.(`AI: running "${s.title}"`);
       const res = await runSuggestion(s.id);
-      setState(res.ok ? 'done' : 'idle');
       if (res.ok) {
+        setState('done');
         const gb = ((res.reclaimedBytes ?? 0) / 1024 ** 3).toFixed(2);
         onLog?.(`AI: done "${s.title}" — ~${gb} GB in ${((Date.now() - ts) / 1000).toFixed(1)}s`);
-        setTimeout(() => onDone?.(), 1200);
+        // Remove tile after the done flash so the grid reflects reality.
+        setTimeout(() => onDone?.(s.id), 1400);
       } else {
-        onLog?.(`AI: failed "${s.title}" — ${res.error ?? 'unknown error'}`);
+        setState('idle');
+        const msg = res.error ?? 'unknown error';
+        setErrorMsg(msg);
+        onLog?.(`AI: failed "${s.title}" — ${msg}`);
+        // Clear the inline error after 6s
+        setTimeout(() => setErrorMsg(undefined), 6000);
       }
     }
   };
@@ -102,14 +110,32 @@ export function AITile({ suggestion: s, index, onLog, onDone }: Props) {
         </code>
       )}
 
+      {/* Inline error — shown on the tile, not just buried in the action log */}
+      {errorMsg && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          style={{
+            display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12,
+            color: COLORS.crit, background: 'rgba(255,92,134,0.08)',
+            padding: '8px 12px', borderRadius: 8, border: `1px solid rgba(255,92,134,0.2)`,
+          }}
+        >
+          <Warning size={14} weight="fill" style={{ flexShrink: 0, marginTop: 1 }} />
+          <span style={{ lineHeight: 1.5 }}>{errorMsg}</span>
+        </motion.div>
+      )}
+
       <div style={{ display: 'flex', gap: 8 }}>
         {s.runnable ? (
           <button
-            onClick={handleRun} disabled={state === 'running'}
+            onClick={handleRun} disabled={state === 'running' || state === 'done'}
             className="mono"
             style={{
               flex: 1, fontSize: 13, fontWeight: 700, letterSpacing: '0.05em', padding: '10px', borderRadius: 8,
-              cursor: state === 'running' ? 'default' : 'pointer', border: `1.5px solid ${runColor}`, color: runColor,
+              cursor: (state === 'running' || state === 'done') ? 'default' : 'pointer',
+              border: `1.5px solid ${runColor}`, color: runColor,
               background: 'transparent', opacity: state === 'running' ? 0.6 : 1, transition: 'all 0.15s',
             }}
           >

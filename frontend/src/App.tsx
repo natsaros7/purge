@@ -33,7 +33,6 @@ function categoryToLabel(c: string): string {
 
 export default function App() {
   const { scans, loading, overall, refetchAll, refetchOne } = useCategoryScans();
-  const allLoaded = CATEGORIES.every(c => !loading.has(c)) && overall > 0;
   const { git, loading: gitLoading, refetch: refetchGit } = useGitScan();
   const [phase, setPhase] = useState<Phase>('IDLE');
   const [log, setLog] = useState<LogEntry[]>([]);
@@ -42,6 +41,7 @@ export default function App() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | undefined>();
   const [aiRan, setAiRan] = useState(false);
+  const allLoaded = CATEGORIES.every(c => !loading.has(c)) && overall > 0;
   const scoreHistory = useScoreHistory(overall, allLoaded);
 
   const addLog = useCallback((text: string, type: LogEntry['type']) => {

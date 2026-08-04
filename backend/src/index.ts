@@ -105,7 +105,9 @@ app.post('/api/diagnose/run', async (req, res) => {
   if (!suggestion?.command) { res.status(404).json({ error: 'Suggestion not found or has no command' }); return; }
   if (!isRunnable(suggestion.command)) { res.status(403).json({ error: 'Command not in safe allowlist' }); return; }
   try {
-    const [bin, ...args] = suggestion.command.trim().split(/\s+/);
+    // execFileAsync has no shell, so ~ is never expanded. Do it explicitly.
+    const expanded = suggestion.command.trim().replace(/(^| )~\//g, `$1${HOME}/`);
+    const [bin, ...args] = expanded.split(/\s+/);
     await execFileAsync(bin, args, { timeout: 120_000 });
     res.json({ ok: true, reclaimedBytes: (suggestion.estimatedGB ?? 0) * 1024 ** 3 });
   } catch (e) {

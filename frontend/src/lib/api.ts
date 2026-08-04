@@ -63,13 +63,16 @@ export async function runDiagnose(): Promise<DiagnoseResult> {
   return res.json();
 }
 
-export async function runSuggestion(id: string): Promise<{ ok: boolean; reclaimedBytes?: number }> {
+export async function runSuggestion(id: string): Promise<{ ok: boolean; reclaimedBytes?: number; error?: string }> {
   const res = await fetch(`${API}/api/diagnose/run`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id }),
   });
-  if (!res.ok) return { ok: false };
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({})) as { error?: string };
+    return { ok: false, error: body.error ?? `HTTP ${res.status}` };
+  }
   return res.json();
 }
 

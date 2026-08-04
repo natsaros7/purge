@@ -1,11 +1,16 @@
+import { readFileSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { scanCategory, scanGitHygiene, CATEGORIES } from '../scanner/registry.js';
 import { askClaude, extractJson } from './llm.js';
 import { isRunnable } from './exec.js';
 import { type ExecFn, defaultExec, HOME } from '../scanner/utils.js';
 import type { AISuggestion, DiagnoseResult, Category } from '../types.js';
 
-// ─── Extra read-only probes ────────────────────────────────────────────────
-// Known-heavy spots the static scanners don't cover, to give the model real material.
+const CACHE_FILE = join(tmpdir(), 'purge-suggestions.json');
+
+// ─── Extra read-only probes ─────────────────────────────────────────────────
 
 const PROBE_DIRS: { key: string; path: string }[] = [
   { key: 'downloadsGB',        path: `${HOME}/Downloads` },
@@ -38,7 +43,7 @@ async function gatherProbes(exec: ExecFn): Promise<Record<string, number>> {
   return { ...Object.fromEntries(entries), brewOutdatedCount: brewOutdated };
 }
 
-// ─── Prompt ─────────────────────────────────────────────────────────────────
+// ─── Prompt ──────────────────────────────────────────────────────────────────
 
 function buildPrompt(context: unknown): string {
   return `You are a macOS system-cleanup analyst for a senior software engineer's work machine. \
@@ -62,10 +67,13 @@ Diagnostics:
 ${JSON.stringify(context, null, 2)}`;
 }
 
+// ─── Coerce model output → typed suggestions ─────────────────────────────────
+
 const VALID_CATS = new Set<AISuggestion['category']>([...CATEGORIES, 'system', 'git'] as AISuggestion['category'][]);
 const VALID_RISK = new Set(['low', 'medium', 'high']);
 
-function coerce(raw: unknown[]): AISuggestion[] {
+/** Validate and normalise raw model output. Exported for unit testing. */
+export function coerce(raw: unknown[]): AISuggestion[] {
   return raw.flatMap((r, i) => {
     if (typeof r !== 'object' || r === null) return [];
     const o = r as Record<string, unknown>;
@@ -86,15 +94,25 @@ function coerce(raw: unknown[]): AISuggestion[] {
   });
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────
+// ─── Suggestion cache — in-memory + disk persisted ───────────────────────────
+// Persisting to disk means the map survives backend restarts (tsx watch hot-reload
+// during dev, or process crashes) so the frontend can still RUN suggestions it
+// received before the restart.
 
-// Cache of the last diagnosis so execution can reference a suggestion by id
-// (we never execute a client-supplied command — only the server-held one).
 let lastSuggestions = new Map<string, AISuggestion>();
+
+// Restore from previous session at module load (sync — avoids async module init).
+try {
+  const raw = readFileSync(CACHE_FILE, 'utf-8');
+  const arr = JSON.parse(raw) as AISuggestion[];
+  if (Array.isArray(arr)) lastSuggestions = new Map(arr.map(s => [s.id, s]));
+} catch { /* cold start or corrupt cache — start empty */ }
 
 export function lookupSuggestion(id: string): AISuggestion | undefined {
   return lastSuggestions.get(id);
 }
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export async function diagnose(exec: ExecFn = defaultExec): Promise<DiagnoseResult> {
   try {
@@ -119,6 +137,8 @@ export async function diagnose(exec: ExecFn = defaultExec): Promise<DiagnoseResu
       .slice(0, 20);
 
     lastSuggestions = new Map(suggestions.map(s => [s.id, s]));
+    // Persist so the map survives restarts; non-fatal if write fails.
+    writeFile(CACHE_FILE, JSON.stringify(suggestions)).catch(() => {});
     return { suggestions };
   } catch (e) {
     return { suggestions: [], error: String(e instanceof Error ? e.message : e) };

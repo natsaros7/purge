@@ -22,7 +22,7 @@ export const CATEGORIES: Category[] = ['disk', 'docker', 'caches', 'builds', 'pr
 
 // ─── Cache + in-flight dedup ─────────────────────────────────────────────────
 
-const CAT_TTL_MS     = 20_000;
+const CAT_TTL_MS     = 60_000;
 const GIT_TTL_MS     = 60_000;
 const CAT_TIMEOUT_MS = 12_000;
 const GIT_TIMEOUT_MS = 20_000;

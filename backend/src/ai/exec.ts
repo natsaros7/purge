@@ -42,6 +42,12 @@ export function isRunnable(command: string | undefined): boolean {
   if (!command) return false;
   if (SHELL_METACHAR.test(command)) return false;
   if (!ALLOWED_AI_PREFIXES.some(re => re.test(command))) return false;
+  // Full-string scan catches denylist paths that contain spaces (which the whitespace
+  // split below would fragment). This is the primary guard for paths like
+  // "Application Support/Google".
+  if (DENYLIST.some(d => command.includes(d))) return false;
+  // Per-arg scan handles tilde-expanded paths and catches args that aren't
+  // picked up by the substring scan (e.g. exact ~ paths).
   const args = command.trim().split(/\s+/).slice(1);
   if (args.some(pathDenied)) return false;
   return true;

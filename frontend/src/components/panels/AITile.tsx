@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Sparkle, Copy, Check } from '@phosphor-icons/react';
 import { AISuggestion } from '../../types';
 import { COLORS } from '../../theme';
@@ -6,6 +7,7 @@ import { runSuggestion } from '../../lib/api';
 
 interface Props {
   suggestion: AISuggestion;
+  index: number;
   onLog?: (text: string) => void;
   onDone?: () => void;
 }
@@ -13,12 +15,12 @@ interface Props {
 const AI = '#A78BFA';
 
 const RISK: Record<AISuggestion['risk'], { fg: string; bg: string }> = {
-  low:    { fg: COLORS.primary, bg: 'rgba(0,224,172,0.14)' },
-  medium: { fg: COLORS.warn,    bg: 'rgba(255,194,75,0.14)' },
-  high:   { fg: COLORS.crit,    bg: 'rgba(255,92,134,0.14)' },
+  low:    { fg: COLORS.primary, bg: 'rgba(0,224,172,0.12)' },
+  medium: { fg: COLORS.warn,    bg: 'rgba(255,194,75,0.12)' },
+  high:   { fg: COLORS.crit,    bg: 'rgba(255,92,134,0.12)' },
 };
 
-export function AITile({ suggestion: s, onLog, onDone }: Props) {
+export function AITile({ suggestion: s, index, onLog, onDone }: Props) {
   const [state, setState] = useState<'idle' | 'confirm' | 'running' | 'done'>('idle');
   const [copied, setCopied] = useState(false);
   const risk = RISK[s.risk];
@@ -36,36 +38,66 @@ export function AITile({ suggestion: s, onLog, onDone }: Props) {
         onLog?.(`AI: done "${s.title}" — ~${gb} GB in ${((Date.now() - ts) / 1000).toFixed(1)}s`);
         setTimeout(() => onDone?.(), 1200);
       } else {
-        onLog?.(`AI: failed "${s.title}"`);
+        onLog?.(`AI: failed "${s.title}" — ${res.error ?? 'unknown error'}`);
       }
     }
   };
 
-  const copy = () => { if (s.command) { navigator.clipboard.writeText(s.command); setCopied(true); setTimeout(() => setCopied(false), 1400); } };
+  const copy = () => {
+    if (s.command) { navigator.clipboard.writeText(s.command); setCopied(true); setTimeout(() => setCopied(false), 1400); }
+  };
 
   const runLabel = state === 'idle' ? 'RUN' : state === 'confirm' ? 'CONFIRM' : state === 'running' ? '···' : '✓ DONE';
   const runColor = state === 'confirm' ? COLORS.warn : state === 'done' ? COLORS.primary : AI;
 
   return (
-    <div style={{
-      background: '#161228', borderRadius: 20, padding: 22,
-      display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150,
-      borderTop: `2px solid ${AI}`,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
-        <Sparkle size={16} color={AI} weight="fill" />
-        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: risk.bg, color: risk.fg, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-          {s.risk}
-        </span>
-        <span style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{s.category}</span>
-        {s.estimatedGB ? <span className="mono" style={{ marginLeft: 'auto', fontSize: 15, fontWeight: 800, color: AI }}>~{s.estimatedGB} GB</span> : null}
+    <motion.div
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{ duration: 0.35, ease: 'easeOut', delay: index * 0.1 }}
+      style={{
+        gridColumn: 'span 2',
+        background: '#14201f',
+        borderRadius: 20,
+        padding: 24,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
+        minHeight: 150,
+      }}
+    >
+      {/* Header — matches PanelShell layout */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+          <Sparkle size={20} color={AI} weight="duotone" />
+          <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '0.02em', color: COLORS.textDim }}>{s.title}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999,
+            background: risk.bg, color: risk.fg, letterSpacing: '0.05em', textTransform: 'uppercase',
+          }}>
+            {s.risk}
+          </span>
+          <span style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            {s.category}
+          </span>
+          {s.estimatedGB ? (
+            <span className="mono" style={{ fontSize: 13, fontWeight: 700, color: AI }}>~{s.estimatedGB} GB</span>
+          ) : null}
+        </div>
       </div>
 
-      <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, lineHeight: 1.25 }}>{s.title}</div>
-      <div style={{ fontSize: 13.5, lineHeight: 1.5, color: COLORS.textDim, flex: 1 }}>{s.detail}</div>
+      <div style={{ fontSize: 13.5, lineHeight: 1.55, color: COLORS.textDim, flex: 1 }}>{s.detail}</div>
 
       {s.command && (
-        <code className="mono" style={{ fontSize: 12, color: COLORS.textDim, background: '#0a1315', padding: '9px 11px', borderRadius: 8, overflowX: 'auto', whiteSpace: 'nowrap' }}>
+        <code className="mono" style={{
+          fontSize: 12, color: COLORS.textDim, background: COLORS.bg,
+          padding: '9px 12px', borderRadius: 8,
+          wordBreak: 'break-all', whiteSpace: 'pre-wrap',
+          border: `1px solid ${COLORS.lineSoft}`,
+        }}>
           {s.command}
         </code>
       )}
@@ -103,6 +135,6 @@ export function AITile({ suggestion: s, onLog, onDone }: Props) {
           </button>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }

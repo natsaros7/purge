@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowsClockwise, Lightning, Info, Sparkle } from '@phosphor-icons/react';
 import { PurgeEvent, Category, AISuggestion } from './types';
 import { useCategoryScans, CATEGORIES } from './hooks/useCategoryScans';
@@ -193,13 +193,22 @@ export default function App() {
               {!aiLoading && aiError && <span style={{ fontSize: 14, color: COLORS.warn }}>Failed: {aiError} (is the Claude CLI installed & authenticated?)</span>}
             </div>
           )}
-          {aiLoading && [0, 1, 2].map(i => (
-            <motion.div key={`sk-${i}`} style={{ minHeight: 150, borderRadius: 20, background: 'rgba(167,139,250,0.08)' }}
-              animate={{ opacity: [0.4, 0.75, 0.4] }} transition={{ duration: 1.4, repeat: Infinity, delay: i * 0.15 }} />
-          ))}
-          {!aiLoading && aiSuggestions.map(s => (
-            <AITile key={s.id} suggestion={s} onLog={t => addLog(t, 'info')} onDone={() => { refetchAll(true); refetchGit(true); }} />
-          ))}
+          <AnimatePresence mode="popLayout">
+            {aiLoading
+              ? [0, 1, 2].map(i => (
+                <motion.div
+                  key={`sk-${i}`}
+                  style={{ gridColumn: 'span 2', minHeight: 150, borderRadius: 20, background: 'rgba(167,139,250,0.06)' }}
+                  animate={{ opacity: [0.4, 0.75, 0.4] }}
+                  exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.2 } }}
+                  transition={{ duration: 1.4, repeat: Infinity, delay: i * 0.15 }}
+                />
+              ))
+              : aiSuggestions.map((s, i) => (
+                <AITile key={s.id} index={i} suggestion={s} onLog={t => addLog(t, 'info')} onDone={() => { refetchAll(true); refetchGit(true); }} />
+              ))
+            }
+          </AnimatePresence>
 
           {/* Git — full width */}
           <div style={{ gridColumn: '1 / -1' }}>

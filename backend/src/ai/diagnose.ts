@@ -23,6 +23,10 @@ const PROBE_DIRS: { key: string; path: string }[] = [
   { key: 'gradleGB',           path: `${HOME}/.gradle` },
 ];
 
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([p, new Promise<T>(res => setTimeout(() => res(fallback), ms))]);
+}
+
 async function duGB(path: string, exec: ExecFn): Promise<number> {
   try {
     const { stdout } = await exec(`du -sk "${path}" 2>/dev/null`);
@@ -33,11 +37,11 @@ async function duGB(path: string, exec: ExecFn): Promise<number> {
 
 async function gatherProbes(exec: ExecFn): Promise<Record<string, number>> {
   const entries = await Promise.all(
-    PROBE_DIRS.map(async d => [d.key, await duGB(d.path, exec)] as const)
+    PROBE_DIRS.map(async d => [d.key, await withTimeout(duGB(d.path, exec), 8_000, 0)] as const)
   );
   let brewOutdated = 0;
   try {
-    const { stdout } = await exec('brew outdated --quiet 2>/dev/null');
+    const { stdout } = await withTimeout(exec('brew outdated --quiet 2>/dev/null'), 6_000, { stdout: '', stderr: '' });
     brewOutdated = stdout.trim() ? stdout.trim().split('\n').length : 0;
   } catch { /* brew missing */ }
   return { ...Object.fromEntries(entries), brewOutdatedCount: brewOutdated };
@@ -117,8 +121,8 @@ export function lookupSuggestion(id: string): AISuggestion | undefined {
 export async function diagnose(exec: ExecFn = defaultExec): Promise<DiagnoseResult> {
   try {
     const [cats, git, probes] = await Promise.all([
-      Promise.all(CATEGORIES.map(c => scanCategory(c as Category))),
-      scanGitHygiene(),
+      Promise.all(CATEGORIES.map(c => withTimeout(scanCategory(c as Category), 15_000, { category: c, score: 0, metrics: {}, actions: [] }))),
+      withTimeout(scanGitHygiene(), 20_000, { findings: [] }),
       gatherProbes(exec),
     ]);
 

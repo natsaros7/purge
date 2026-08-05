@@ -1,7 +1,11 @@
 import { readdir, stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { CategoryScan, RemediationAction } from '../types.js';
 import { type ExecFn, defaultExec, HOME, linearScore } from './utils.js';
+
+// Never suggest deleting our own node_modules — the app would kill itself.
+const SELF_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'node_modules');
 
 // Score: 100 at ≤0.5 GB total, 0 at ≥15 GB total
 function scoreNodeModules(totalGB: number): number {
@@ -64,6 +68,7 @@ export async function scanNodeModules(exec: ExecFn = defaultExec): Promise<Categ
 
     await Promise.all(
       nmDirs.map(async dir => {
+        if (dir === SELF_ROOT) return; // never suggest deleting our own node_modules
         try {
           const { stdout } = await exec(`du -sk "${dir}" 2>/dev/null`);
           const kb = parseInt(stdout.trim().split(/\s+/)[0], 10) || 0;
